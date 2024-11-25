@@ -1,0 +1,12 @@
+#pragma once
+
+#ifndef OTA_PASSWORD
+    #define OTA_PASSWORD "Password"
+#endif
+
+
+#define WIFI_SSID "wifi ssid"
+#define WIFI_PASSWORD "wifi password"
+
+#define PIN <your pin>
+#define NUMPIXELS <neopixel ammount>
