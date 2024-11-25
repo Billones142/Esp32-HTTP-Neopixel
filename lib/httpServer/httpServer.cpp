@@ -11,8 +11,9 @@ AsyncWebServer server(80);
 void initHttpServer(){
     // Serve a simple HTML page
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+        String message= (String)"{\"message:\"\"pixel ammount: " + pixels.numPixels() + "\"}";
         request->send(200, "text/html", 
-        "<h1>Hello, ESP32!</h1>");
+        message.c_str());
     });
 
     server.on("/setcolor", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
