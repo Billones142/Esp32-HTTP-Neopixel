@@ -1,9 +1,6 @@
 #include <neopixel.h>
 #include <ArduinoJson.h>
 
-#define PIN 23           // Pin GPIO para la señal de datos
-#define NUMPIXELS 16
-
 Adafruit_NeoPixel pixels;
 
 void neopixel_Init(uint16_t pixelAmount, uint16_t pin){
@@ -11,7 +8,7 @@ void neopixel_Init(uint16_t pixelAmount, uint16_t pin){
     pixels.begin();
 }
 
-uint8_t processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonString){
+NeopixelJsonStatus processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonString){
     JsonDocument doc;
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, jsonString);
@@ -26,7 +23,6 @@ uint8_t processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonString){
     }
 
     JsonArray colours = doc["colours"];
-
 
     if (!(doc["colours"].as<JsonArray>().size() > 0))
     {
