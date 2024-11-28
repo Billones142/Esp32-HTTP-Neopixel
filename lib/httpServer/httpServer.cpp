@@ -1,5 +1,6 @@
 #include <httpServer.h>
 #include <config.h>
+#include <LittleFS.h>
 
 #include <ESPAsyncWebServer.h>
 #include <neopixel.h>
@@ -8,10 +9,48 @@
 
 AsyncWebServer server(80);
 
+const char * htmlString;
+
+void setResponse(String &message, int jsonResponse);
+
 void initHttpServer(){
+    // Inicializa LittleFS y verifica si se monta correctamente
+    if (!LittleFS.begin()) {
+        Serial.println("Error al montar LittleFS");
+        return;
+    }
+
+    File file = LittleFS.open("/index.html", "r");
+    if (!file) {
+        htmlString= file.readString().c_str();
+    } else {
+        htmlString= "<h1> Html error </h1>";
+    }
+    file.close();
+    
+    
+    // Manejador genérico para agregar encabezados CORS
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "http://localhost");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    // Manejador para solicitudes OPTIONS
+    server.on("/*", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
+        AsyncWebServerResponse *response = request->beginResponse(204); // No Content
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        response->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        response->addHeader("Access-Control-Allow-Headers", "Content-Type");
+        request->send(response);
+    });
+
+    // Servir el archivo HTML
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", htmlString);
+    });
+
     // Serve a simple HTML page
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        String message= (String)"{\"message:\"\"pixel ammount: " + pixels.numPixels() + "\"}";
+    server.on("/getNumpixels", HTTP_GET, [](AsyncWebServerRequest *request){
+        String message= (String)"{\"message\":\"" + pixels.numPixels() + " pixel/s\"}";
         request->send(200, "text/html", 
         message.c_str());
     });
@@ -32,34 +71,9 @@ void initHttpServer(){
             status= "Error";
         }
 
-        switch (jsonResponse) {
-        case NeopixelJsonStatus::JSON_OK:
-            message= "Neopixel strip updated";
-            break;
-
-        case NeopixelJsonStatus::NO_PROPERTY_COLOURS:
-            message= "Colours property not found";
-            break;
-
-        case NeopixelJsonStatus::JSON_PARSE_ERROR:
-            message= "Json parse error";
-            break;
-
-        case NeopixelJsonStatus::COLOURS_ARRAY_EMPTY:
-            message= "Colour array empty";
-            break;
-
-        case NeopixelJsonStatus::UKNOWNN_ERROR :
-            message= "Uknown error";
-            break;        
-
-        default:
-            message= "Uknown led status";
-            break;
-        }
-        
+        setResponse(message, jsonResponse);
        
-        String content= (String)"{\"status\": \"" + status + "\",\"message\": \"" + message + "\"}";
+        String content= (String)"{\"status\":\"" + status + "\",\"message\":\"" + message + "\"}";
         //Serial.println(content);
         auto statusCode= status == "Success"?200:500;
         request->send(statusCode,"application/json", content.c_str());
@@ -67,4 +81,32 @@ void initHttpServer(){
 
     server.begin();
     Serial.println("HTTP server started");
+}
+
+void setResponse(String &message, int jsonResponse){
+        switch (jsonResponse) {
+        case NeopixelJsonStatus::JSON_OK:
+            message= "Neopixel strip updated";
+            break;
+
+        case NeopixelJsonStatus::NO_PROPERTY_COLOURS:
+            message= "Colours property not found in json";
+            break;
+
+        case NeopixelJsonStatus::JSON_PARSE_ERROR:
+            message= "Json parse error";
+            break;
+
+        case NeopixelJsonStatus::COLOURS_ARRAY_EMPTY:
+            message= "Colours array empty in json";
+            break;
+
+        case NeopixelJsonStatus::UKNOWNN_ERROR :
+            message= "Uknown json error";
+            break;        
+
+        default:
+            message= "Uknown led status";
+            break;
+        }
 }
