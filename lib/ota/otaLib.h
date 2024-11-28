@@ -2,6 +2,5 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 
-
-void OTA_Init(const char* password, uint16_t port);
+void OTA_Init(const char *password, uint16_t port);
 void arduino_OTA_Handle();

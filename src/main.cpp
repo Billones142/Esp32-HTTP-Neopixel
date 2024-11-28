@@ -3,7 +3,6 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-
 #include <wifiLib.h>
 #include <httpServer.h>
 #include <otaLib.h>
@@ -12,11 +11,11 @@
 
 #pragma message("\nWiFi SSID: " WIFI_SSID "\nWiFi Password: " WIFI_PASSWORD)
 
-
-void setup() {
+void setup()
+{
     Serial.begin(115200U);
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0U);
-    
+
     wifi_Init(WIFI_SSID, WIFI_PASSWORD);
     mDNS_Init(WIFI_HOSTNAME, OTA_PORT);
 
@@ -26,9 +25,9 @@ void setup() {
 
     neopixel_Init(NUMPIXELS, PIN);
     initHttpServer();
-
 }
 
-void loop() {
+void loop()
+{
     ArduinoOTA.handle();
 }
