@@ -1,11 +1,11 @@
-#include <mdns.h>
+#include <mdnsInit.h>
 #include <ESPmDNS.h>
 
 void mDNS_Init(const char *hostname, uint16_t otaPort)
 {
     // Initialize mDNS
-    if (!MDNS.begin("esp-32"))
-    { // Replace "esp32" with your desired hostname
+    if (!MDNS.begin(hostname))
+    {
         Serial.println("Error starting mDNS");
         return;
     }
