@@ -7,6 +7,12 @@
 
 #include <config.h>
 
+
+/*
+* Initialices the wifi service
+* @param ssid Name of the wifi you want to connect to
+* @param password password of the wifi to connect
+*/
 void wifi_Init(const char *ssid, const char *password)
 {
     WiFi.begin(ssid, password);
