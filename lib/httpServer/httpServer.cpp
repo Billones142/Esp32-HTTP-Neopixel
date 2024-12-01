@@ -9,34 +9,36 @@
 
 AsyncWebServer server(80);
 
-const char *htmlString;
+String htmlString;
 
 void setResponse(String &message, int jsonResponse);
 
 void initHttpServer()
 {
     // Inicializa LittleFS y verifica si se monta correctamente
-    if (!LittleFS.begin())
-    {
-        Serial.println("Error al montar LittleFS");
-        return;
-    }
-
-    File file = LittleFS.open("/index.html", "r");
-    if (!file)
-    {
-        htmlString = file.readString().c_str();
+    if (!LittleFS.begin()){
+        File file = LittleFS.open("/index.html", "r");
+        if (!file)
+        {
+            htmlString = file.readString();
+        }
+        file.close();
     }
     else
     {
+        Serial.println("Error al montar LittleFS");
+        LittleFS.format();
         htmlString = "<h1> Html error </h1>";
     }
-    file.close();
 
     // Manejador genérico para agregar encabezados CORS
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "http://localhost");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+    
+    // Servir el archivo HTML
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(200, "text/html", htmlString.c_str()); });
 
     // Manejador para solicitudes OPTIONS
     server.on("/*", HTTP_OPTIONS, [](AsyncWebServerRequest *request)
@@ -47,9 +49,6 @@ void initHttpServer()
         response->addHeader("Access-Control-Allow-Headers", "Content-Type");
         request->send(response); });
 
-    // Servir el archivo HTML
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(200, "text/html", htmlString); });
 
     // Serve a simple HTML page
     server.on("/getNumpixels", HTTP_GET, [](AsyncWebServerRequest *request)
