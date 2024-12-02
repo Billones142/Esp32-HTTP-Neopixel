@@ -14,6 +14,7 @@
 void setup()
 {
     Serial.begin(115200U);
+    Serial.println("ESP32 Core executing on: " + String(xPortGetCoreID()));
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0U); // disables brownout detector, fixes wifi problem
 
     wifi_Init(WIFI_SSID, WIFI_PASSWORD);
