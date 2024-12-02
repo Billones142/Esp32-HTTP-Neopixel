@@ -15,4 +15,5 @@ enum NeopixelJsonStatus : int8_t
     COLOURS_ARRAY_EMPTY,
 };
 
-NeopixelJsonStatus processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonString);
+NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixels, String jsonString);
+NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixels, String jsonString);

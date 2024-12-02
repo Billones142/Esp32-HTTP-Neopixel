@@ -1,5 +1,6 @@
 #include <neopixel.h>
 #include <ArduinoJson.h>
+#include <luaNeopixel.h>
 
 Adafruit_NeoPixel pixels;
 
@@ -7,32 +8,13 @@ void neopixel_Init(uint16_t pixelAmount, uint16_t pin)
 {
     pixels = Adafruit_NeoPixel(pixelAmount, pin, NEO_GRB + NEO_KHZ800);
     pixels.begin();
+    pixels.clear();
+    pixels.show();
+    solInit(pixels);
 }
 
-NeopixelJsonStatus processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonString)
+void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours)
 {
-    JsonDocument doc;
-    // Parse JSON object
-    DeserializationError error = deserializeJson(doc, jsonString);
-    if (error)
-    {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        return JSON_PARSE_ERROR;
-    }
-
-    if (!doc["colours"].is<JsonArray>())
-    {
-        return NO_PROPERTY_COLOURS;
-    }
-
-    JsonArray colours = doc["colours"];
-
-    if (!(doc["colours"].as<JsonArray>().size() > 0))
-    {
-        return COLOURS_ARRAY_EMPTY;
-    }
-
     uint16_t pixelsChanged = 0;
 
     for (JsonObject colour : colours)
@@ -64,15 +46,65 @@ NeopixelJsonStatus processJsonToNeopixel(Adafruit_NeoPixel &pixels, String jsonS
         else
             continue;
 
-        // Serial.println((String)"index: " + index + " red: " + red + " green: " + green + " blue: " + blue);
-        pixels.setPixelColor(index, pixels.Color(red, green, blue));
+        pixelStrip.setPixelColor(index, pixelStrip.Color(red, green, blue));
         pixelsChanged++;
     }
 
     if (pixelsChanged > 0)
     {
-        pixels.show();
+        stopLuaTask();
+        pixelStrip.show();
     }
-    // Serial.println("finished proccessing json");
+}
+
+NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, String jsonString)
+{
+    JsonDocument doc;
+    // Parse JSON object
+    DeserializationError error = deserializeJson(doc, jsonString);
+    if (error)
+    {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return JSON_PARSE_ERROR;
+    }
+
+    
+    if (!isLuaWorking())
+    {
+        if (!doc["colours"].is<JsonArray>())
+        {
+            return NO_PROPERTY_COLOURS;
+        }
+
+        JsonArray colours = doc["colours"];
+
+        if (!(doc["colours"].as<JsonArray>().size() > 0))
+        {
+            return COLOURS_ARRAY_EMPTY;
+        }
+
+        changePixelManual(pixels, colours);
+    }
+
     return JSON_OK;
+}
+
+NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, String jsonString)
+{
+    JsonDocument doc;
+    // Parse JSON object
+    DeserializationError error = deserializeJson(doc, jsonString);
+    if (error)
+    {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return JSON_PARSE_ERROR;
+    }
+
+    if (doc["luaScript"].is<JsonString>())
+    {
+        Serial.println(doc["luaScript"].as<JsonString>().c_str());
+        changeScript(doc["luaScript"].as<JsonString>().c_str());
+    }
 }
