@@ -17,14 +17,16 @@ bool luaTaskExecuting = false;
 
 void solStartTask();
 void luaDelay(uint32_t delayMillis);
+void luaLoop(void *parameter);
+
 void luaSetPixelColor(int pixel, uint32_t color);
 void luaPrint(const char *message);
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b);
 void luaShowPixels();
 void setPixelBrightness(uint8_t brigtness);
 void luaClearPixels();
+uint16_t luaGetPixelAmount();
 uint32_t colorWheel(byte pos);
-void luaLoop(void *parameter);
 
 void solInit(Adafruit_NeoPixel *pixelsToChange)
 {
@@ -41,6 +43,7 @@ void solInit(Adafruit_NeoPixel *pixelsToChange)
     lua.set_function("getColor", luaGetColor);
     lua.set_function("setPixelBrightness", luaGetColor);
     lua.set_function("showPixels", luaShowPixels);
+    lua.set_function("getPixelAmount", luaGetPixelAmount);
     lua.set_function("clearPixels", luaClearPixels);
     lua.set_function("colorWheel", colorWheel);
 }
@@ -87,16 +90,6 @@ bool isLuaWorking()
     return (bool)luaTaskHandle;
 }
 
-/*void changeScript(const char *newScript)
-{
-    luaScript = newScript;
-    newLuaScript = true;
-    if (!isLuaWorking())
-    {
-        solStartTask();
-    }
-}*/
-
 void changeScript(const char *newScript)
 {
     bool scriptNotChanged= true;
@@ -128,6 +121,10 @@ uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b)
 
 void setPixelBrightness(uint8_t brigtness){
     pixelsLua->setBrightness(brigtness);
+}
+
+uint16_t luaGetPixelAmount(){
+    return pixelsLua->numPixels();
 }
 
 void luaShowPixels()
