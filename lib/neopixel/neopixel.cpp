@@ -10,7 +10,7 @@ void neopixel_Init(uint16_t pixelAmount, uint16_t pin)
     pixels.begin();
     pixels.clear();
     pixels.show();
-    solInit(pixels);
+    solInit(&pixels);
 }
 
 void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours)
@@ -69,8 +69,7 @@ NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, St
         return JSON_PARSE_ERROR;
     }
 
-    
-    if (!isLuaWorking())
+        if (!isLuaWorking())
     {
         if (!doc["colours"].is<JsonArray>())
         {
@@ -104,7 +103,7 @@ NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, St
 
     if (doc["luaScript"].is<JsonString>())
     {
-        Serial.println(doc["luaScript"].as<JsonString>().c_str());
         changeScript(doc["luaScript"].as<JsonString>().c_str());
     }
+    return JSON_OK;
 }

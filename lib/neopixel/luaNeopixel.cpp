@@ -10,10 +10,10 @@ sol::state lua;
 Adafruit_NeoPixel *pixelsLua = nullptr;
 
 TaskHandle_t luaTaskHandle;
+SemaphoreHandle_t luaScriptExecuting = xSemaphoreCreateBinary();
 String luaScript = "";
-SemaphoreHandle_t scriptSemaphore;
 bool newLuaScript = false;
-bool luaScriptWorking = false;
+bool luaTaskExecuting = false;
 
 void solStartTask();
 void luaDelay(uint32_t delayMillis);
@@ -21,72 +21,99 @@ void luaSetPixelColor(int pixel, uint32_t color);
 void luaPrint(const char *message);
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b);
 void luaShowPixels();
+void setPixelBrightness(uint8_t brigtness);
 void luaClearPixels();
 uint32_t colorWheel(byte pos);
 void luaLoop(void *parameter);
 
-void solInit(Adafruit_NeoPixel &pixelsToChange)
+void solInit(Adafruit_NeoPixel *pixelsToChange)
 {
-    scriptSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(scriptSemaphore); // Inicializa el semáforo en estado disponible
-    pixelsLua = &pixelsToChange;
+    xSemaphoreGive(luaScriptExecuting);
+    pixelsLua = pixelsToChange;
     // for print
     lua.open_libraries(sol::lib::base);
 
-    // custom function
+    // custom functions
     lua.set_function("delay", luaDelay);
+    lua.set_function("print", luaPrint);
 
     lua.set_function("setPixelColor", luaSetPixelColor);
-    lua.set_function("luaGetColor", luaGetColor);
+    lua.set_function("getColor", luaGetColor);
+    lua.set_function("setPixelBrightness", luaGetColor);
     lua.set_function("showPixels", luaShowPixels);
     lua.set_function("clearPixels", luaClearPixels);
     lua.set_function("colorWheel", colorWheel);
-    lua.set_function("print", luaPrint);
 }
 
 void solStartTask()
 {
-    luaScriptWorking = true;
-    Serial.println("asignando tarea");
-    // Crea la tarea y la asigna al núcleo 0
-    xTaskCreatePinnedToCore(
-        luaLoop,        // Función a ejecutar
-        "LuaTask",      // Nombre de la tarea
-        32768,          // Tamaño del stack en bytes
-        NULL,           // Parámetros para la tarea (ninguno en este caso)
-        1,              // Prioridad de la tarea
-        &luaTaskHandle, // Manejador de la tarea
-        0               // Núcleo donde se ejecutará (1)
-    );
-    Serial.println("FIN: asignando tarea");
+    if (luaScript.isEmpty())
+    {
+        Serial.println("Empty Lua script, skipping execution.");
+        return;
+    }
+    if (!isLuaWorking())
+    {
+        // Proceed with task creation
+        xTaskCreatePinnedToCore(
+            luaLoop,
+            "LuaLoop",
+            8192,
+            NULL,
+            1,
+            &luaTaskHandle,
+            0);
+        luaTaskExecuting = true;
+        xSemaphoreGive(luaScriptExecuting);
+    }
 }
-void luaPrint(const char *message){
-    Serial.println(message);
+void luaPrint(const char *message)
+{
+    Serial.println((String) "Lua script: " + message);
 }
 
 void stopLuaTask()
 {
-    if (luaTaskHandle)
+    if (luaTaskExecuting)
     {
         vTaskDelete(luaTaskHandle);
+        luaTaskExecuting = false;
         luaTaskHandle = nullptr;
-        luaScriptWorking = false;
     }
 }
 
 bool isLuaWorking()
 {
-    return luaScriptWorking;
+    return (bool)luaTaskHandle;
 }
 
-void changeScript(const char *newScript)
+/*void changeScript(const char *newScript)
 {
     luaScript = newScript;
     newLuaScript = true;
-    if (!luaTaskHandle)
+    if (!isLuaWorking())
     {
         solStartTask();
     }
+}*/
+
+void changeScript(const char *newScript)
+{
+    bool scriptNotChanged= true;
+    while (scriptNotChanged)
+    {
+        if (xSemaphoreTake(luaScriptExecuting, pdMS_TO_TICKS(1000)) == pdTRUE)
+        {
+            luaScript = newScript;
+            newLuaScript = true;
+            stopLuaTask();
+            solStartTask();
+            xSemaphoreGive(luaScriptExecuting);
+            scriptNotChanged= false;
+        }
+        
+    }
+    
 }
 
 void luaSetPixelColor(int pixel, uint32_t color)
@@ -97,6 +124,10 @@ void luaSetPixelColor(int pixel, uint32_t color)
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b)
 {
     return pixelsLua->Color(r, g, b);
+}
+
+void setPixelBrightness(uint8_t brigtness){
+    pixelsLua->setBrightness(brigtness);
 }
 
 void luaShowPixels()
@@ -127,64 +158,43 @@ uint32_t colorWheel(byte pos)
     }
 }
 
-/*void luaDelay(uint32_t delayMillis)
-{
-    unsigned long finishTime = millis() + delayMillis;
-    while (millis() < finishTime)
-    {
-#ifdef ESP32
-        vTaskDelay(1);
-#endif
-    }
-   //delay(delayMillis);
-}*/
 // Implementa la función delay para Lua
-void luaDelay(uint32_t delayMilis)
+void luaDelay(uint32_t delayMillis)
 {
-    unsigned long finishTime = millis() + delayMilis;
-    while (millis() < finishTime){}
+    TickType_t startTick = xTaskGetTickCount(); // Obtiene el tick actual
+    TickType_t ticksToDelay = pdMS_TO_TICKS(delayMillis);
+
+    // Espera hasta que pase el tiempo indicado
+    vTaskDelayUntil(&startTick, ticksToDelay);
 }
 
 void luaLoop(void *parameter)
 {
-    try
-    {
-        lua.script(luaScript.c_str());
-        newLuaScript = false;
-    }
-    catch (const sol::error &e)
-    {
-        Serial.print("Lua error: ");
-        Serial.println(e.what());
-        vTaskDelete(NULL); // Termina la tarea en caso de error
-        return;
-    }
-
-    Serial.println("empezando lua loop");
+    String luaScriptExec = luaScript;
+    newLuaScript = false;
     while (!newLuaScript)
     {
-        Serial.println("lua loop");
+        xSemaphoreTake(luaScriptExecuting, portMAX_DELAY);
         try
         {
-            lua.safe_script(luaScript.c_str()); // Llama a la función 'loop' de Lua
+            auto result = lua.safe_script(luaScriptExec.c_str());
+            //Serial.println(result.get<std::string>().c_str());
         }
         catch (const sol::error &e)
         {
-            Serial.print("Lua runtime error in 'loop': ");
+            Serial.print("Lua runtime error: ");
             Serial.println(e.what());
-            break; // Sale del loop si hay un error
+            stopLuaTask();
+            return;
         }
-        catch (const std::runtime_error &e)
+        catch (...)
         {
-            Serial.print("Lua runtime unknown error in 'loop': ");
-            Serial.println(e.what());
-            break; // Sale del loop si hay un error
+            Serial.println("Unknown error in Lua script.");
+            stopLuaTask();
+            return;
         }
-
-        /*#ifdef ESP32
-                vTaskDelay(1); // Permite que el sistema operativo libere el CPU
-        #endif*/
+        xSemaphoreGive(luaScriptExecuting);
     }
-    Serial.print("ending luaLoop");
-    vTaskDelete(NULL); // Finaliza la tarea cuando se detecta un nuevo script
+    stopLuaTask();
+    return;
 }
