@@ -3,10 +3,12 @@
 #ifndef OTA_PASSWORD
     #define OTA_PASSWORD "Password"
 #endif
+#define OTA_PORT 8266
 
 
 #define WIFI_SSID "wifi ssid"
 #define WIFI_PASSWORD "wifi password"
+#define WIFI_HOSTNAME "esp-32"
 
 #define PIN <your pin>
 #define NUMPIXELS <neopixel ammount>
