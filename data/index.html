@@ -4,10 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 Neopixel</title>
+  <style>
+    textarea {
+        width: 100%;
+        height: 300px;
+        font-family: monospace;
+        font-size: 14px;
+        background-color: #f4f4f4;
+        color: #333;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
+        resize: vertical;
+    }
+    button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007BFF;
+        color: white;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #0056b3;
+    }
+</style>
 </head>
 <body>
-  <h1>ESP32 Neopixel</h1>
-  <form id="colorForm">
+    <h1>ESP32 Neopixel</h1>
+    <form id="colorForm">
+        <h2>Static color</h2>
         <div>
             <label for="index">Índice:</label>
             <input type="number" value="0" id="index" name="i" min="0" required>
@@ -15,10 +43,34 @@
         </div>
         <button type="button" onclick="sendData()">Enviar</button>
     </form>
+    <form id="scriptForm">
+        <h2>Lua script</h2>
+        <div>
+            <label for="script">Script</label>
+            <textarea  type="text" id="luaScript" name="luaScript" required></textarea>
+        </div>
+        <button type="button" onclick="sendScriptData()">Enviar script</button>
+    </form>
 
   <p id="response"></p>
 
   <script>
+    const textarea = document.getElementById('luaScript');
+
+    textarea.addEventListener('keydown', function(event) {
+        if (event.key === 'Tab') {
+            event.preventDefault(); // Evita el comportamiento predeterminado de tabulación
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+
+            // Inserta 4 espacios en la posición actual del cursor
+            const spaces = '    ';
+            this.value = this.value.substring(0, start) + spaces + this.value.substring(end);
+
+            // Coloca el cursor justo después de los 4 espacios
+            this.selectionStart = this.selectionEnd = start + spaces.length;
+        }
+    });
     const colorSelector= document.getElementById('colorValues');
 
     let debounceTimer;
@@ -29,6 +81,11 @@
         }, 7);
 
     });
+
+    function updateMessage(message) {
+        document.getElementById('response').textContent= message;
+
+    }
 
     function updateValue(color, value) {
             document.getElementById(`${color}Value`).textContent = value;
@@ -56,7 +113,32 @@
             ]
         };
 
-        fetch('http://192.168.0.130/setcolor', { // Reemplaza con la IP del ESP32
+        document.getElementById('response').textContent= "";
+        fetch('http://esp-32.local/setcolor', {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonPayload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('response').textContent = `Respuesta del ESP32: ${data.message}`;
+        })
+        .catch(error => {
+            document.getElementById('response').textContent = `Error: ${error}`;
+        });
+    }
+
+    function sendScriptData() {
+        const luaScript = document.getElementById('luaScript').value;
+
+        const jsonPayload = {
+            luaScript,
+        };
+
+        document.getElementById('response').textContent= "";
+        fetch('http://esp-32.local/setScript', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json'
