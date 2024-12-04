@@ -16,9 +16,11 @@ bool newLuaScript = false;
 bool luaTaskExecuting = false;
 
 void solStartTask();
+void setLuaWorking(bool newState);
 void luaDelay(uint32_t delayMillis);
 void luaLoop(void *parameter);
 
+// funtions for lua scripts
 void luaSetPixelColor(int pixel, uint32_t color);
 void luaPrint(const char *message);
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b);
@@ -66,7 +68,7 @@ void solStartTask()
             1,
             &luaTaskHandle,
             0);
-        luaTaskExecuting = true;
+        setLuaWorking(true);
         xSemaphoreGive(luaScriptExecuting);
     }
 }
@@ -77,17 +79,32 @@ void luaPrint(const char *message)
 
 void stopLuaTask()
 {
-    if (luaTaskExecuting)
+    while (xSemaphoreTake(luaScriptExecuting, pdMS_TO_TICKS(1000)) == pdTRUE)
     {
-        vTaskDelete(luaTaskHandle);
-        luaTaskExecuting = false;
-        luaTaskHandle = nullptr;
+        if (isLuaWorking())
+        {
+            vTaskDelete(luaTaskHandle);
+            setLuaWorking(false);
+            luaTaskHandle = nullptr;
+        }
     }
 }
 
 bool isLuaWorking()
 {
-    return (bool)luaTaskHandle;
+    if(luaTaskHandle)
+    {
+        return luaTaskExecuting;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void setLuaWorking(bool newState)
+{
+    luaTaskExecuting= newState;
 }
 
 void changeScript(const char *newScript)
@@ -99,9 +116,9 @@ void changeScript(const char *newScript)
         {
             luaScript = newScript;
             newLuaScript = true;
+            xSemaphoreGive(luaScriptExecuting);
             stopLuaTask();
             solStartTask();
-            xSemaphoreGive(luaScriptExecuting);
             scriptNotChanged= false;
         }
         
@@ -168,6 +185,9 @@ void luaDelay(uint32_t delayMillis)
 void luaLoop(void *parameter)
 {
     String luaScriptExec = luaScript;
+
+    // TODO: make it so the script turns into a lua::function to optimize execution and not have to interpret the script every loop
+
     newLuaScript = false;
     while (!newLuaScript)
     {

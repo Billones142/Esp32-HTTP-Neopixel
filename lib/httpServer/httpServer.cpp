@@ -1,6 +1,5 @@
 #include <httpServer.h>
 #include <config.h>
-#include <LittleFS.h>
 
 #include <ESPAsyncWebServer.h>
 #include <neopixel.h>
@@ -21,21 +20,6 @@ void sendJsonResponse(AsyncWebServerRequest *request, const String &status, cons
 
 void initHttpServer()
 {
-    // Inicializa LittleFS y verifica si se monta correctamente
-    /*if (LittleFS.begin()){
-        File file = LittleFS.open("/index.html", "r");
-        if (!file)
-        {
-            htmlString = file.readString();
-        }
-        file.close();
-    }
-    else
-    {
-        Serial.println("Error al montar LittleFS");
-        LittleFS.format();
-        //htmlString = "<h1> Html error </h1>";
-    }*/
     htmlString = HTML_PAGE;
 
     // Manejador genérico para agregar encabezados CORS
