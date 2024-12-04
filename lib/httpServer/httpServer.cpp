@@ -114,11 +114,11 @@ void setResponse(String &message, int jsonResponse)
         break;
 
     case NeopixelJsonStatus::UKNOWNN_ERROR:
-        message = "Uknown json error";
+        message = "Unknown json error";
         break;
 
     default:
-        message = "Uknown led status";
+        message = "Unknown led status";
         break;
     }
 }
