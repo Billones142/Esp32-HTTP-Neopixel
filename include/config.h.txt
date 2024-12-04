@@ -10,5 +10,7 @@
 #define WIFI_PASSWORD "wifi password"
 #define WIFI_HOSTNAME "esp-32"
 
+#define HTML_URL "https://billones142.github.io/Esp32-HTTP-Neopixel/data/index.html"
+
 #define PIN <your pin>
 #define NUMPIXELS <neopixel ammount>

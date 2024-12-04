@@ -8,9 +8,9 @@
 
 AsyncWebServer server(80);
 
-String htmlString;
-
+// functions used only inside this lib
 void setResponse(String &message, int jsonResponse);
+void sendJsonResponse(AsyncWebServerRequest *request, const String &status, const String &message);
 
 void sendJsonResponse(AsyncWebServerRequest *request, const String &status, const String &message)
 {
@@ -20,16 +20,14 @@ void sendJsonResponse(AsyncWebServerRequest *request, const String &status, cons
 
 void initHttpServer()
 {
-    htmlString = HTML_PAGE;
-
     // Manejador genérico para agregar encabezados CORS
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    // Servir el archivo HTML
+    // Redirect to html on url defined in config
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(200, "text/html", htmlString.c_str()); });
+              { request->redirect(HTML_URL); });
 
     // Manejador para solicitudes OPTIONS
     server.on("/*", HTTP_OPTIONS, [](AsyncWebServerRequest *request)
