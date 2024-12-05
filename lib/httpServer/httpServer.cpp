@@ -2,6 +2,7 @@
 #include <config.h>
 
 #include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
 #include <neopixel.h>
 
 #define HTML_URL "https://billones142.github.io/Esp32-HTTP-Neopixel/data/index.html"
@@ -46,6 +47,24 @@ void initHttpServer()
         String message= (String)"{\"message\":\"" + pixels.numPixels() + " pixel/s\"}";
         request->send(200, "text/html", 
         message.c_str()); });
+
+    server.on("/getSavedScripts", HTTP_GET, [](AsyncWebServerRequest *request)
+              {
+        JsonDocument bodyResponse;
+        bodyResponse["status"]= "Success";
+        bodyResponse["scripts"]= getSavedLuaScripts();
+        if (bodyResponse["scripts"].size() > 0)
+        {
+            bodyResponse["message"]= "Scripts send";
+        }
+        else
+        {
+            bodyResponse["message"]= "No scripts found";
+        }
+        
+        
+
+        request->send(200, "application/json", bodyResponse.as<String>());});
 
     server.on("/setcolor", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
               {

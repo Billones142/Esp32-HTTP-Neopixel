@@ -17,3 +17,6 @@ enum NeopixelJsonStatus : int8_t
 
 NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixels, String jsonString);
 NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixels, String jsonString);
+
+JsonArray getSavedLuaScripts();
+JsonArray getSavedLuaScripts(fs::FS &fs);

@@ -183,6 +183,50 @@ String littleFsReadScript(fs::FS &fs, const char *scriptName)
     return fileContent;
 }
 
+JsonArray getSavedLuaScripts()
+{
+    return getSavedLuaScripts(LittleFS);
+}
+
+JsonArray getSavedLuaScripts(fs::FS &fs)
+{
+    JsonArray luaScripts;
+    File root = fs.open("/");
+    if (!root)
+    {
+        Serial.println("- failed to open root directory");
+        return luaScripts;
+    }
+    if (!root.isDirectory())
+    {
+        Serial.println(" - not a directory");
+        return luaScripts;
+    }
+
+    File file = root.openNextFile();
+    while (file)
+    {
+        if (file.isDirectory())
+        {
+            Serial.print("  DIR : ");
+            Serial.println(file.name());
+        }
+        else
+        {
+            String filename= file.name();
+            if (filename.endsWith(".lua"))
+            {
+                JsonObject scriptToAdd;
+                scriptToAdd["name"]= filename;
+                scriptToAdd["content"]= file.readString();
+                luaScripts.add(scriptToAdd);
+            }
+        }
+        file = root.openNextFile();
+    }
+    return luaScripts;
+}
+
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
     Serial.printf("Listing directory: %s\r\n", dirname);
