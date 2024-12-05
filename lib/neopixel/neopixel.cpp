@@ -1,6 +1,4 @@
 #include <neopixel.h>
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 #include <luaNeopixel.h>
 
 Adafruit_NeoPixel pixels;
