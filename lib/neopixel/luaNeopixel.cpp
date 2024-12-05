@@ -21,7 +21,8 @@ void luaDelay(uint32_t delayMillis);
 void luaLoop(void *parameter);
 
 // funtions for lua scripts
-void luaSetPixelColor(int pixel, uint32_t color);
+void luaSetPixelColor(uint16_t pixel, uint32_t color);
+uint32_t luaGetPixelColor(uint16_t pixel);
 void luaPrint(const char *message);
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b);
 void luaShowPixels();
@@ -42,6 +43,7 @@ void solInit(Adafruit_NeoPixel *pixelsToChange)
     lua.set_function("print", luaPrint);
 
     lua.set_function("setPixelColor", luaSetPixelColor);
+    lua.set_function("getPixelColor", luaGetPixelColor);
     lua.set_function("getColor", luaGetColor);
     lua.set_function("setPixelBrightness", luaGetColor);
     lua.set_function("showPixels", luaShowPixels);
@@ -86,13 +88,14 @@ void stopLuaTask()
             vTaskDelete(luaTaskHandle);
             setLuaWorking(false);
             luaTaskHandle = nullptr;
+            Serial.println("Lua loop task stopped");
         }
     }
 }
 
 bool isLuaWorking()
 {
-    if(luaTaskHandle)
+    if (luaTaskHandle)
     {
         return luaTaskExecuting;
     }
@@ -104,12 +107,12 @@ bool isLuaWorking()
 
 void setLuaWorking(bool newState)
 {
-    luaTaskExecuting= newState;
+    luaTaskExecuting = newState;
 }
 
 void changeScript(const char *newScript)
 {
-    bool scriptNotChanged= true;
+    bool scriptNotChanged = true;
     while (scriptNotChanged)
     {
         if (xSemaphoreTake(luaScriptExecuting, pdMS_TO_TICKS(1000)) == pdTRUE)
@@ -119,16 +122,19 @@ void changeScript(const char *newScript)
             xSemaphoreGive(luaScriptExecuting);
             stopLuaTask();
             solStartTask();
-            scriptNotChanged= false;
+            scriptNotChanged = false;
         }
-        
     }
-    
 }
 
-void luaSetPixelColor(int pixel, uint32_t color)
+void luaSetPixelColor(uint16_t pixel, uint32_t color)
 {
     pixelsLua->setPixelColor(pixel, color);
+}
+
+uint32_t luaGetPixelColor(uint16_t pixel)
+{
+    return pixelsLua->getPixelColor(pixel);
 }
 
 uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b)
@@ -136,11 +142,13 @@ uint32_t luaGetColor(uint8_t r, uint8_t g, uint8_t b)
     return pixelsLua->Color(r, g, b);
 }
 
-void setPixelBrightness(uint8_t brigtness){
+void setPixelBrightness(uint8_t brigtness)
+{
     pixelsLua->setBrightness(brigtness);
 }
 
-uint16_t luaGetPixelAmount(){
+uint16_t luaGetPixelAmount()
+{
     return pixelsLua->numPixels();
 }
 
@@ -182,20 +190,60 @@ void luaDelay(uint32_t delayMillis)
     vTaskDelayUntil(&startTick, ticksToDelay);
 }
 
+sol::protected_function wrapLuaScriptToFunction(const String &script)
+{
+    // Ensure the Lua script is not empty
+    if (script.isEmpty())
+    {
+        Serial.println("Provided Lua script is empty.");
+        return sol::protected_function();
+    }
+
+    // Wrap the script inside a `loop` function
+    String wrappedScript = "function loop()\n" + script + "\nend";
+
+    try
+    {
+        // Execute the wrapped script to define the 'loop' function
+        lua.safe_script(wrappedScript.c_str());
+
+        // Retrieve the 'loop' function from Lua
+        sol::protected_function loopFunc = lua["loop"];
+        if (!loopFunc.valid())
+        {
+            Serial.println("Lua 'loop' function is not valid or undefined.");
+            return sol::protected_function();
+        }
+
+        // Return the valid 'loop' function
+        return loopFunc;
+    }
+    catch (const sol::error &e)
+    {
+        Serial.print("Lua script parsing error: ");
+        Serial.println(e.what());
+    }
+    catch (...)
+    {
+        Serial.println("Unknown error while parsing Lua script.");
+    }
+
+    // Return an empty function on failure
+    return sol::protected_function();
+}
+
 void luaLoop(void *parameter)
 {
-    String luaScriptExec = luaScript;
-
-    // TODO: make it so the script turns into a lua::function to optimize execution and not have to interpret the script every loop
-
+    sol::protected_function luaLoopFunction = wrapLuaScriptToFunction(luaScript);
     newLuaScript = false;
+
     while (!newLuaScript)
     {
         xSemaphoreTake(luaScriptExecuting, portMAX_DELAY);
         try
         {
-            auto result = lua.safe_script(luaScriptExec.c_str());
-            //Serial.println(result.get<std::string>().c_str());
+            auto result = luaLoopFunction();
+            // Serial.println(result.get<std::string>().c_str());
         }
         catch (const sol::error &e)
         {
