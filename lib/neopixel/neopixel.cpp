@@ -211,12 +211,12 @@ JsonArray getSavedLuaScripts(fs::FS &fs)
         }
         else
         {
-            String filename= file.name();
+            String filename = file.name();
             if (filename.endsWith(".lua"))
             {
                 JsonObject scriptToAdd;
-                scriptToAdd["name"]= filename;
-                scriptToAdd["content"]= file.readString();
+                scriptToAdd["name"] = filename;
+                scriptToAdd["content"] = file.readString();
                 luaScripts.add(scriptToAdd);
             }
         }
