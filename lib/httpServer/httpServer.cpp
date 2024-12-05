@@ -4,9 +4,11 @@
 #include <ESPAsyncWebServer.h>
 #include <neopixel.h>
 
-#include "html.h"
+#define HTML_URL "https://billones142.github.io/Esp32-HTTP-Neopixel/data/index.html"
+// #include <WiFiServerSecure.h>
 
 AsyncWebServer server(80);
+// WiFiServerSecure server(443);
 
 // functions used only inside this lib
 void setResponse(String &message, int jsonResponse);
@@ -57,7 +59,9 @@ void initHttpServer()
         if (jsonResponse == NeopixelJsonStatus::JSON_OK)
         {
             status= "Success";
-        } else {
+        }
+        else
+        {
             status= "Error";
         }
 
@@ -78,7 +82,9 @@ void initHttpServer()
         if (jsonResponse == NeopixelJsonStatus::JSON_OK)
         {
             status= "Success";
-        } else {
+        }
+        else
+        {
             status= "Error";
         }
 
