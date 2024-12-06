@@ -8,13 +8,13 @@
     <style>
 
         textarea {
-            width: 100%;
+            width: 80%;
             height: 300px;
             font-family: monospace;
             font-size: 14px;
-            background-color: #f4f4f4;
-            color: #333;
-            border: 1px solid #ccc;
+            background-color: #3a3a3a;
+            color: #ff6600;
+            border: 1px solid #000000;
             border-radius: 5px;
             padding: 10px;
             resize: vertical;
@@ -142,7 +142,7 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('response').textContent = `Respuesta del ESP32: ${data.message}`;
+                    document.getElementById('response').textContent = `${new Date()}: Respuesta del ESP32: ${data.message}`;
                 })
                 .catch(error => {
                     document.getElementById('response').textContent = `Error: ${error}`;
@@ -154,14 +154,14 @@
             const saveScript = document.getElementById('saveScript').value | false;
             const applyScript = document.getElementById('applyScript').value | true;
             const scriptName = document.getElementById('scriptName').value | "";
-            const applySavedScript = document.getElementById('applySavedScript').value | false;
+            const applySavedScript = document.getElementById('applySavedScript')?.value | false;
 
             const jsonPayload = {
-                "luaScript" : luaScript,
-                "saveScript": saveScript,
-                "applyScript": applyScript,
-                "scriptName": scriptName,
-                "applySavedScript": false,
+                "luaScript" : String(luaScript),
+                "saveScript": Boolean(saveScript),
+                "applyScript": Boolean(applyScript),
+                "scriptName": Boolean(scriptName),
+                "applySavedScript": Boolean(applySavedScript),
             };
 
             document.getElementById('response').textContent = "";
@@ -174,7 +174,7 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('response').textContent = `Respuesta del ESP32: ${data.message}`;
+                    document.getElementById('response').textContent = `${new Date()}: Respuesta del ESP32: ${data.message}`;
                 })
                 .catch(error => {
                     document.getElementById('response').textContent = `Error: ${error}`;
