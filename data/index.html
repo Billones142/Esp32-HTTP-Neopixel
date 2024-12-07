@@ -42,16 +42,24 @@
     <form id="colorForm">
         <h2>Static color</h2>
         <div>
-            <label for="index">Índice:</label>
+            <div>
+                <input type="checkbox" id="automaticStaticColourSend" name="saveScript">
+                <label for="automaticStaticColourSend">Auto send</label>
+            </div>
+            <label for="index">Index:</label>
             <input type="number" value="0" id="index" name="i" min="0" required>
             <input name="Color Picker" id="colorValues" type="color" />
         </div>
-        <button type="button" onclick="sendData()">Send colour</button>
+        <button type="button" onclick="sendStaticData()">Send colour</button>
     </form>
     <form id="scriptForm">
         <h2>Lua script</h2>
         <div>
-            <div>   
+            <div>
+                <input type="checkbox" id="applySavedScript" name="saveScript">
+                <label for="applySavedScript">Apply saved script</label>
+            </div>
+            <div>
                 <input type="checkbox" id="saveScript" name="saveScript">
                 <label for="saveScript">Save script</label>
             </div>
@@ -91,14 +99,16 @@
             }
         });
         const colorSelector = document.getElementById('colorValues');
+        const autoSendCheckbox= document.getElementById('automaticStaticColourSend');
 
         let debounceTimer;
         colorSelector.addEventListener('input', () => {
-            clearTimeout(debounceTimer); // Clear the previous timer
-            debounceTimer = setTimeout(() => {
-                sendData();
-            }, 7);
-
+            if (autoSendCheckbox.checked) {
+                clearTimeout(debounceTimer); // Clear the previous timer
+                debounceTimer = setTimeout(() => {
+                    sendStaticData();
+                }, 7);
+            }
         });
 
         function updateMessage(message) {
@@ -117,7 +127,7 @@
             return { red, green, blue };
         }
 
-        function sendData() {
+        function sendStaticData() {
             const index = document.getElementById('index').value;
             const { red, green, blue } = hexToRgb(colorSelector.value)
 
@@ -142,26 +152,32 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('response').textContent = `${new Date()}: Respuesta del ESP32: ${data.message}`;
+                    updateResponseLabel(data.message);
                 })
                 .catch(error => {
-                    document.getElementById('response').textContent = `Error: ${error}`;
+                    updateResponseLabel(`Error: ${error}`);
                 });
+        }
+
+        function updateResponseLabel(message) {
+            let date = new Date();
+            let formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+            document.getElementById('response').textContent = `${formattedDate}: Respuesta del ESP32: ${message}`;
         }
 
         function sendScriptData() {
             const luaScript = document.getElementById('luaScript').value;
-            const saveScript = document.getElementById('saveScript').value | false;
-            const applyScript = document.getElementById('applyScript').value | true;
-            const scriptName = document.getElementById('scriptName').value | "";
-            const applySavedScript = document.getElementById('applySavedScript')?.value | false;
+            const saveScript = document.getElementById('saveScript').checked;
+            const applyScript = document.getElementById('applyScript').checked;
+            const scriptName = document.getElementById('scriptName').value;
+            const applySavedScript = document.getElementById('applySavedScript').checked;
 
             const jsonPayload = {
                 "luaScript" : String(luaScript),
-                "saveScript": Boolean(saveScript),
                 "applyScript": Boolean(applyScript),
-                "scriptName": Boolean(scriptName),
+                "saveScript": Boolean(saveScript),
                 "applySavedScript": Boolean(applySavedScript),
+                "scriptName": String(scriptName),
             };
 
             document.getElementById('response').textContent = "";
@@ -174,10 +190,10 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('response').textContent = `${new Date()}: Respuesta del ESP32: ${data.message}`;
+                    updateResponseLabel(data.message);
                 })
                 .catch(error => {
-                    document.getElementById('response').textContent = `Error: ${error}`;
+                    updateResponseLabel(`Error: ${error}`);
                 });
         }
     </script>
