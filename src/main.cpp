@@ -27,6 +27,8 @@ void setup()
     initHttpServer();
 
     mDNS_Init(WIFI_HOSTNAME, OTA_PORT);
+    pinMode(2, OUTPUT);
+    digitalWrite(2, HIGH);
 }
 
 void loop()
