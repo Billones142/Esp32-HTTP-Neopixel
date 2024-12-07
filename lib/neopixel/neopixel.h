@@ -4,21 +4,13 @@
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <luaNeopixel.h>
 extern Adafruit_NeoPixel pixels;
 
 void neopixel_Init(uint16_t pixelAmount, uint16_t pin);
 
-enum NeopixelJsonStatus : int8_t
-{
-    UKNOWNN_ERROR = -1,
-    JSON_OK = 0,
-    JSON_PARSE_ERROR,
-    NO_PROPERTY_COLOURS,
-    COLOURS_ARRAY_EMPTY,
-};
+void processJsonToNeopixelStatic(Adafruit_NeoPixel &pixels, String jsonString);
+void processJsonToNeopixelScript(Adafruit_NeoPixel &pixels, String jsonString);
 
-NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixels, String jsonString);
-NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixels, String jsonString);
-
-JsonArray getSavedLuaScripts();
-JsonArray getSavedLuaScripts(fs::FS &fs);
+JsonDocument getSavedLuaScripts(bool retrieveScriptContent = false);
+JsonDocument getSavedLuaScripts(fs::FS &fs, bool retrieveScriptContent = false);

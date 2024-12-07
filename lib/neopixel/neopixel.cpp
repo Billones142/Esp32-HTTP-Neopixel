@@ -1,31 +1,22 @@
 #include <neopixel.h>
-#include <luaNeopixel.h>
 
-Adafruit_NeoPixel pixels;
+Adafruit_NeoPixel PROGMEM pixels;
 
-void printLittleFSFiles();
-NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, String jsonString);
-void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours);
-NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, String jsonString);
-NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, String jsonString);
-void littleFsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName);
-void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
+static JsonDocument parseJson(String jsonString);
+static void printFSFiles(fs::FS &fs);
+static void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours);
+static void fsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName);
+static void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 
-void printLittleFSFiles()
+void printFSFiles(fs::FS &fs)
 {
-    // Asegúrate de que LittleFS esté montado
-    if (!LittleFS.begin())
-    {
-        Serial.println("Error: LittleFS no se pudo montar.");
-        return;
-    }
-
-    Serial.println("Archivos en LittleFS:");
+    Serial.println("Archivos: ");
 
     // Abre el directorio raíz
-    File root = LittleFS.open("/");
+    File root = fs.open("/");
     if (!root || !root.isDirectory())
     {
+        root.close();
         Serial.println("Error: No se pudo abrir el directorio raíz.");
         return;
     }
@@ -61,9 +52,7 @@ void printLittleFSFiles()
         // Abre el siguiente archivo/directorio
         file = root.openNextFile();
     }
-
-    // Finaliza la sesión de LittleFS
-    LittleFS.end();
+    file.close();
 }
 
 void neopixel_Init(uint16_t pixelAmount, uint16_t pin)
@@ -75,7 +64,7 @@ void neopixel_Init(uint16_t pixelAmount, uint16_t pin)
     if (LittleFS.begin())
     {
         Serial.println("LittleFS started successfully");
-        printLittleFSFiles();
+        printFSFiles(LittleFS);
     }
     else
     {
@@ -98,7 +87,7 @@ void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours)
         uint8_t blue = colour["b"] | 0;
 
         // Verificar que el índice es válido
-        if (index == (uint16_t)-1)
+        if (index == -1)
         {
             continue;
         }
@@ -116,64 +105,73 @@ void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours)
     }
 }
 
-NeopixelJsonStatus processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, String jsonString)
+JsonDocument parseJson(String jsonString)
 {
     JsonDocument doc;
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, jsonString);
     if (error)
     {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        return JSON_PARSE_ERROR;
+        String errorMessage = (String) "Error parsing json:\n" + error.c_str();
+        throw std::runtime_error(errorMessage.c_str());
     }
+    return doc;
+}
+
+void processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, String jsonString)
+{
+    auto doc = parseJson(jsonString);
 
     if (!isLuaWorking())
     {
         if (!doc["colours"].is<JsonArray>())
         {
-            return NO_PROPERTY_COLOURS;
+            throw std::runtime_error("Colours is not an array or does not exist");
         }
 
         JsonArray colours = doc["colours"];
 
         if (!(doc["colours"].as<JsonArray>().size() > 0))
         {
-            return COLOURS_ARRAY_EMPTY;
+            throw std::runtime_error("Colours array empty");
         }
 
         changePixelManual(pixels, colours);
     }
-
-    return JSON_OK;
 }
 
-void littleFsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName)
+void fsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName)
 {
-    if (LittleFS.begin())
+    String filename = (String) "/" + scriptName + ".lua";
+    File file = fs.open(filename.c_str(), "w");
+    size_t savedSize = file.print(scriptToSave);
+    file.close();
+    if (savedSize)
     {
-        String filename = (String)scriptName + ".lua";
-        File file = LittleFS.open(filename.c_str(), "w");
-        if (file.print(scriptToSave))
-        {
-            Serial.println("- script written");
-        }
-        else
-        {
-            Serial.println("- script write failed");
-        }
-        file.close();
+        Serial.println((String) "script written" + scriptName);
+    }
+    else
+    {
+        throw std::runtime_error("Script write failed");
     }
 }
 
-String littleFsReadScript(fs::FS &fs, const char *scriptName)
+String fsReadScript(fs::FS &fs, String scriptName)
 {
-    String filename = (String)scriptName + ".lua";
-    File file = LittleFS.open(filename.c_str(), "r");
-    if (!file || file.isDirectory())
+    if (scriptName.isEmpty())
     {
-        Serial.println("- failed to open file for reading");
-        return "";
+        throw std::runtime_error("Script name empty");
+    }
+
+    String filename = scriptName + ".lua";
+    File file = fs.open(filename, "r");
+    if (!file)
+    {
+        throw std::runtime_error("Failed to open file for reading");
+    }
+    else if (file.isDirectory())
+    {
+        throw std::runtime_error("Path was a directory");
     }
 
     String fileContent = file.readString();
@@ -181,24 +179,23 @@ String littleFsReadScript(fs::FS &fs, const char *scriptName)
     return fileContent;
 }
 
-JsonArray getSavedLuaScripts()
+JsonDocument getSavedLuaScripts(bool retrieveScriptContent)
 {
-    return getSavedLuaScripts(LittleFS);
+    return getSavedLuaScripts(LittleFS, retrieveScriptContent);
 }
 
-JsonArray getSavedLuaScripts(fs::FS &fs)
+JsonDocument getSavedLuaScripts(fs::FS &fs, bool retrieveScriptContent)
 {
-    JsonArray luaScripts;
+    JsonDocument doc;
+    JsonArray luaScripts = doc.to<JsonArray>();
     File root = fs.open("/");
     if (!root)
     {
-        Serial.println("- failed to open root directory");
-        return luaScripts;
+        throw std::runtime_error("failed to open directory");
     }
     if (!root.isDirectory())
     {
-        Serial.println(" - not a directory");
-        return luaScripts;
+        throw std::runtime_error("path not a directory");
     }
 
     File file = root.openNextFile();
@@ -214,10 +211,14 @@ JsonArray getSavedLuaScripts(fs::FS &fs)
             String filename = file.name();
             if (filename.endsWith(".lua"))
             {
-                JsonObject scriptToAdd;
+                JsonObject scriptToAdd = luaScripts.createNestedObject();
                 scriptToAdd["name"] = filename;
-                scriptToAdd["content"] = file.readString();
-                luaScripts.add(scriptToAdd);
+
+                if (retrieveScriptContent)
+                {
+                    String content = file.readString();
+                    scriptToAdd["content"] = content;
+                }
             }
         }
         file = root.openNextFile();
@@ -232,13 +233,11 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     File root = fs.open(dirname);
     if (!root)
     {
-        Serial.println("- failed to open directory");
-        return;
+        throw std::runtime_error("failed to open directory");
     }
     if (!root.isDirectory())
     {
-        Serial.println(" - not a directory");
-        return;
+        throw std::runtime_error("path not a directory");
     }
 
     File file = root.openNextFile();
@@ -264,57 +263,40 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     }
 }
 
-NeopixelJsonStatus processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, String jsonString)
+void processJsonToNeopixelScript(Adafruit_NeoPixel &pixelStrip, String jsonString)
 {
-    NeopixelJsonStatus status = NeopixelJsonStatus::UKNOWNN_ERROR;
-    JsonDocument doc;
-    // Parse JSON object
+    auto doc = parseJson(jsonString);
+    Serial.print("processJsonToNeopixelScript json:\n");
+    Serial.println(jsonString);
 
-    DeserializationError error = deserializeJson(doc, jsonString);
-    if (error)
-    {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        status = NeopixelJsonStatus::JSON_PARSE_ERROR;
-    }
-
-    bool applySavedScript = doc["applySavedScript"].as<bool>();
-    bool saveScript = doc["saveScript"].as<bool>();
-    bool applyScript = doc["applyScript"].as<bool>();
+    bool applySavedScript = doc["applySavedScript"].as<bool>() | false;
+    bool saveScript = doc["saveScript"].as<bool>() | false;
+    bool applyScript = doc["applyScript"].as<bool>() | false;
     String scriptName = doc["scriptName"].as<String>();
     String luaScript = doc["luaScript"].as<String>();
-    Serial.print("applySavedScript: ");
-    Serial.println(applySavedScript);
 
-    Serial.print("saveScript: ");
-    Serial.println(saveScript);
-
-    Serial.print("applyScript: ");
-    Serial.println(applyScript);
-
-    Serial.print("scriptName: ");
-    Serial.println(scriptName);
-
-    Serial.print("luaScript: ");
-    Serial.println(luaScript);
-
-    if (applySavedScript && (status == NeopixelJsonStatus::UKNOWNN_ERROR))
+    if (applySavedScript)
     {
-        changeScript(littleFsReadScript(LittleFS, scriptName.c_str()).c_str());
-        status = NeopixelJsonStatus::JSON_OK;
+        try
+        {
+            String retrievedScript = fsReadScript(LittleFS, scriptName.c_str());
+            changeScript(retrievedScript.c_str());
+        }
+        catch (const std::exception &e)
+        {
+            String errorMessage = "Failed apply saved script:\n" + String(e.what());
+            throw std::runtime_error(errorMessage.c_str());
+        }
+        return;
     }
 
-    if (saveScript && (status == NeopixelJsonStatus::UKNOWNN_ERROR))
+    if (saveScript)
     {
-        littleFsSaveScript(LittleFS, luaScript.c_str(), scriptName.c_str());
-        status = status;
+        fsSaveScript(LittleFS, luaScript.c_str(), scriptName.c_str());
     }
 
-    if (applyScript && (status == NeopixelJsonStatus::UKNOWNN_ERROR))
+    if (applyScript)
     {
         changeScript(luaScript.c_str());
-        status = NeopixelJsonStatus::JSON_OK;
     }
-
-    return status;
 }
