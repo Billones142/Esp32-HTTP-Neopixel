@@ -5,36 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Neopixel</title>
-    <style>
-
-        textarea {
-            width: 80%;
-            height: 300px;
-            font-family: monospace;
-            font-size: 14px;
-            background-color: #3a3a3a;
-            color: #ff6600;
-            border: 1px solid #000000;
-            border-radius: 5px;
-            padding: 10px;
-            resize: vertical;
-        }
-
-        button {
-            margin-top: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            background-color: #007BFF;
-            color: white;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -56,7 +27,7 @@
         <h2>Lua script</h2>
         <div>
             <div>
-                <input type="checkbox" id="applySavedScript" name="saveScript">
+                <input type="checkbox" id="applySavedScript" name="applySavedScript">
                 <label for="applySavedScript">Apply saved script</label>
             </div>
             <div>
@@ -70,133 +41,22 @@
             <div style="display: flex; flex-direction: column;">
                 <label for="script">Script</label>
                 <textarea type="text" id="luaScript" name="luaScript" required></textarea>
+                <div>
+                    <button type="button" id="saveLocalScript">Save script locally</button>
+                    <button type="button" id="deleteLocalScript">Delete local script</button>
+                </div>
             </div>
         </div>
         <div>
             <input type="checkbox" id="applyScript" name="applyScript" checked>
             <label for="applyScript">Apply script on upload</label>
         </div>
-        <button type="button" onclick="sendScriptData()">Send script</button>
+        <button type="button" id="sendScriptData">Send script</button>
     </form>
 
     <p id="response"></p>
 
-    <script>
-        const textarea = document.getElementById('luaScript');
-
-        textarea.addEventListener('keydown', function (event) {
-            if (event.key === 'Tab') {
-                event.preventDefault(); // Evita el comportamiento predeterminado de tabulación
-                const start = this.selectionStart;
-                const end = this.selectionEnd;
-
-                // Inserta 4 espacios en la posición actual del cursor
-                const spaces = '    ';
-                this.value = this.value.substring(0, start) + spaces + this.value.substring(end);
-
-                // Coloca el cursor justo después de los 4 espacios
-                this.selectionStart = this.selectionEnd = start + spaces.length;
-            }
-        });
-        const colorSelector = document.getElementById('colorValues');
-        const autoSendCheckbox= document.getElementById('automaticStaticColourSend');
-
-        let debounceTimer;
-        colorSelector.addEventListener('input', () => {
-            if (autoSendCheckbox.checked) {
-                clearTimeout(debounceTimer); // Clear the previous timer
-                debounceTimer = setTimeout(() => {
-                    sendStaticData();
-                }, 7);
-            }
-        });
-
-        function updateMessage(message) {
-            document.getElementById('response').textContent = message;
-
-        }
-
-        function updateValue(color, value) {
-            document.getElementById(`${color}Value`).textContent = value;
-        }
-
-        function hexToRgb(hex) {
-            const red = parseInt(hex.substring(1, 3), 16); // Extraer y convertir rojo
-            const green = parseInt(hex.substring(3, 5), 16); // Extraer y convertir verde
-            const blue = parseInt(hex.substring(5, 7), 16); // Extraer y convertir azul
-            return { red, green, blue };
-        }
-
-        function sendStaticData() {
-            const index = document.getElementById('index').value;
-            const { red, green, blue } = hexToRgb(colorSelector.value)
-
-            const jsonPayload = {
-                colours: [
-                    {
-                        i: parseInt(index),
-                        r: red,
-                        g: green,
-                        b: blue
-                    }
-                ]
-            };
-
-            document.getElementById('response').textContent = "";
-            fetch('http://esp-32.local/setcolor', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(jsonPayload)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    updateResponseLabel(data.message);
-                })
-                .catch(error => {
-                    updateResponseLabel(`Error: ${error}`);
-                });
-        }
-
-        function updateResponseLabel(message) {
-            let date = new Date();
-            let formattedDate = `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
-            document.getElementById('response').textContent = `${formattedDate}: Respuesta del ESP32: ${message}`;
-        }
-
-        function sendScriptData() {
-            const luaScript = document.getElementById('luaScript').value;
-            const saveScript = document.getElementById('saveScript').checked;
-            const applyScript = document.getElementById('applyScript').checked;
-            const scriptName = document.getElementById('scriptName').value;
-            const applySavedScript = document.getElementById('applySavedScript').checked;
-
-            const jsonPayload = {
-                "luaScript" : String(luaScript),
-                "applyScript": Boolean(applyScript),
-                "saveScript": Boolean(saveScript),
-                "applySavedScript": Boolean(applySavedScript),
-                "scriptName": String(scriptName),
-            };
-
-            document.getElementById('response').textContent = "";
-            fetch('http://esp-32.local/setScript', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(jsonPayload)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    updateResponseLabel(data.message);
-                })
-                .catch(error => {
-                    updateResponseLabel(`Error: ${error}`);
-                });
-        }
-    </script>
+    <script src="./index.js"></script>
 </body>
 
 </html>

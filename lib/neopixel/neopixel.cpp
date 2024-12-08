@@ -221,7 +221,7 @@ JsonDocument getSavedLuaScripts(fs::FS &fs, bool retrieveScriptContent)
             String filename = file.name();
             if (filename.endsWith(".lua"))
             {
-                JsonObject scriptToAdd = luaScripts.createNestedObject();
+                JsonObject scriptToAdd = luaScripts.add<JsonObject>();
                 scriptToAdd["name"] = filename;
 
                 if (retrieveScriptContent)
