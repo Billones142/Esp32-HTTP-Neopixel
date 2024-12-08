@@ -7,6 +7,10 @@ static void printFSFiles(fs::FS &fs);
 static void changePixelManual(Adafruit_NeoPixel &pixelStrip, JsonArray &colours);
 static void fsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName);
 static void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
+/**
+ * Converts the name of a Lua script to the name to be accessed in a file system.
+ */
+String toNameOfSavedFsLua(String scriptName);
 
 void printFSFiles(fs::FS &fs)
 {
@@ -140,9 +144,15 @@ void processJsonToNeopixelStatic(Adafruit_NeoPixel &pixelStrip, String jsonStrin
     }
 }
 
+
+String toNameOfSavedFsLua(String scriptName)
+{
+    return (String) "/" + scriptName + ".lua";
+}
+
 void fsSaveScript(fs::FS &fs, const char *scriptToSave, const char *scriptName)
 {
-    String filename = (String) "/" + scriptName + ".lua";
+    String filename = toNameOfSavedFsLua(scriptName);
     File file = fs.open(filename.c_str(), "w");
     size_t savedSize = file.print(scriptToSave);
     file.close();
@@ -163,11 +173,11 @@ String fsReadScript(fs::FS &fs, String scriptName)
         throw std::runtime_error("Script name empty");
     }
 
-    String filename = scriptName + ".lua";
+    String filename = toNameOfSavedFsLua(scriptName);
     File file = fs.open(filename, "r");
     if (!file)
     {
-        throw std::runtime_error("Failed to open file for reading");
+        throw std::runtime_error("Failed to open file");
     }
     else if (file.isDirectory())
     {
