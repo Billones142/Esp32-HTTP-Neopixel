@@ -26,10 +26,10 @@ void processJsonBase(JsonProcess processJsonFunction, AsyncWebServerRequest *req
         response["status"] = "Error";
         response["message"] = e.what();
     }
-    catch (...)
+    catch (std::exception &e)
     {
         response["status"] = "Error";
-        response["message"] = "Unknown error";
+        response["message"] = (String)"error: " + e.what();
     }
 
     request->send(200, "application/json", response.as<String>());
@@ -70,9 +70,9 @@ void initHttpServer()
         {
             bodyResponse["scripts"]= getSavedLuaScripts(true);
         }
-        catch(...)
+        catch(std::exception &e)
         {
-            bodyResponse["scripts"]= "failed";
+            bodyResponse["scripts"]= (String)"failed: " + e.what();
         }
         
 
